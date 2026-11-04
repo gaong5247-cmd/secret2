@@ -1,0 +1,26 @@
+{
+  "target_window_title": "Roblox",
+  "allow_input": false,
+  "allow_student_strikes": false,
+  "fps": 12,
+  "self_screen_point": [0.5, 0.82],
+  "attack_goal": null,
+  "defend_goal": null,
+  "vision": {
+    "ball_template": "assets/ball.png",
+    "threshold": 0.68,
+    "onnx_path": null,
+    "ball_ids": [32],
+    "player_ids": [0]
+  },
+  "controls": {
+    "forward": "w",
+    "back": "s",
+    "left": "a",
+    "right": "d",
+    "tackle": null,
+    "dribble": null,
+    "pass": null,
+    "shoot": null
+  }
+}

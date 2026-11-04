@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fieldmind-xpu"
+version = "0.1.0"
+description = "Experimental visual football agent with CPU perception and Intel XPU tiny policy"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = []
+
+[project.optional-dependencies]
+vision = ["opencv-python>=4.8", "numpy>=1.24,<3", "mss>=9.0", "pydirectinput>=1.0"]
+train = ["torch>=2.5"]
+test = ["pytest>=7"]
+
+[project.scripts]
+fieldmind = "fieldmind.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["fieldmind*"]
