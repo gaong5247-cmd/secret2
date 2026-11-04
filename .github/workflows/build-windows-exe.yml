@@ -1,0 +1,42 @@
+name: Windows EXE
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'fieldmind/**'
+      - 'configs/**'
+      - 'fieldmind_exe.py'
+      - '.github/workflows/build-windows-exe.yml'
+  workflow_dispatch:
+
+jobs:
+  lite-exe:
+    name: Build standalone Windows vision/strategy EXE
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: x64
+      - name: Install Windows dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install '.[vision,test]' pyinstaller
+      - name: Build single-file Windows executable
+        run: |
+          pyinstaller --noconfirm --clean --onefile --console --name FieldMind-XPU-Lite --add-data "configs/tps_ultimate.json;configs" --collect-submodules mss --collect-submodules pydirectinput fieldmind_exe.py
+      - name: Test compiled executable
+        run: |
+          .\dist\FieldMind-XPU-Lite.exe simulate --steps 3
+          .\dist\FieldMind-XPU-Lite.exe check
+      - name: Upload Windows EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FieldMind-XPU-Lite-Windows-x64
+          path: dist/FieldMind-XPU-Lite.exe
+          if-no-files-found: error
+          retention-days: 14
