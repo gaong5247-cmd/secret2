@@ -1,0 +1,79 @@
+name: Windows Full Standalone EXE
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'fieldmind/**'
+      - 'fieldmind_exe.py'
+      - 'configs/**'
+      - '.github/workflows/build-windows-full.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  full-windows-xpu:
+    name: Windows x64 all-in-one EXE
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: x64
+
+      - name: Install ALL runtime dependencies on the BUILD machine
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "torch==2.14.1+xpu" --index-url https://download.pytorch.org/whl/xpu
+          python -m pip install -e ".[vision,test]"
+          python -m pip install "pyinstaller>=6.12,<7"
+          python -c "import torch, cv2, mss, pydirectinput; print('torch:', torch.__version__, 'CPU works:', torch.ones(1).item())"
+
+      - name: Create embedded initial example model (NOT expert trained)
+        shell: pwsh
+        run: |
+          python -m fieldmind.cli make-toy --out data/toy.jsonl --count 2000
+          python -m fieldmind.cli train --dataset data/toy.jsonl --output models/toy_student.pt --epochs 5 --cpu
+
+      - name: Freeze runtime and all XPU Torch/OpenCV libraries into ONE .exe
+        shell: pwsh
+        run: |
+          python -m PyInstaller --noconfirm --clean --onefile --noupx --console --name FieldMind-XPU-Full --collect-all torch --collect-submodules fieldmind --collect-submodules mss --collect-submodules pydirectinput --collect-binaries cv2 --copy-metadata torch --add-data "configs/tps_ultimate.json;configs" --add-data "models/toy_student.pt;models" fieldmind_exe.py
+
+      - name: Smoke test isolated EXE without Python module installation
+        shell: pwsh
+        run: |
+          .\dist\FieldMind-XPU-Full.exe simulate --steps 3
+          .\dist\FieldMind-XPU-Full.exe check
+          if (-not (Test-Path "dist/FieldMind-XPU-Full.exe")) { throw "Missing EXE" }
+          Get-Item dist/FieldMind-XPU-Full.exe | Select-Object Name,Length
+
+      - name: Upload downloadable Windows executable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FieldMind-XPU-Full-Windows-x64
+          path: dist/FieldMind-XPU-Full.exe
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Publish public direct-download release after PASS
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.2.0-full
+          name: FieldMind XPU Full Standalone (research prototype)
+          make_latest: false
+          body: |
+            Windows 10/11 x64. No Python/pip/installer is needed on the destination PC. Includes Python runtime, OpenCV, vision capture, tiny student model, and Intel XPU-enabled PyTorch with CPU fallback. Intel's hardware driver must already be present; this release does not install a driver.
+
+            Research prototype only: the included example model is trained on synthetic rule labels, NOT TPS Ultimate Soccer expert footage. This is not an automatic expert soccer player. Unverified TPS keys and game input are off by default.
+
+            The Windows CI smoke test runs on CPU without Intel Arc hardware; GPU compatibility must still be checked on an Intel PC.
+          files: dist/FieldMind-XPU-Full.exe
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
